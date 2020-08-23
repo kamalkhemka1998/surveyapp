@@ -55,5 +55,171 @@ def getqbytid(tid):
     details=json.dumps(docs,default=json_util.default)
     return jsonify(json.loads(details))
 
+@app.route("/surveydata/<string:tid>/<string:refid>/<string:mcqname>",methods=['GET'])
+@cross_origin(origin='*',headers=['Content-Type'])
+def getcount(tid,refid,mcqname):
+    pipeline=[
+    {
+        '$project': {
+            '_id': 0, 
+            'survey': 1
+        }
+    }, {
+        '$unwind': {
+            'path': '$survey'
+        }
+    }, {
+        '$match': {
+            'survey.topicid': tid
+        }
+    }, {
+        '$unwind': {
+            'path': '$survey.data'
+        }
+    }, {
+        '$match': {
+            'survey.data.ref': refid
+        }
+    }, {
+        '$unwind': {
+            'path': '$survey.data.response.mcq'
+        }
+    }, {
+        '$match': {
+            'survey.data.response.mcq.question': mcqname
+        }
+    }, {
+        '$group': {
+            '_id': '$survey.data.response.mcq.answer', 
+            'count': {
+                '$sum': 1
+            }
+        }
+    }
+]
+    docs=[doc for doc in Survey.aggregate(pipeline)]
+    details=json.dumps(docs,default=json_util.default)
+    return jsonify(json.loads(details))
+
+@app.route("/qdataTID/<string:topicId>",methods=['GET'])
+@cross_origin(origin='*',headers=['Content-Type'])
+def getRefByTopicid(topicId):
+    pipeline = [
+        {
+            '$match': {
+                'topicID': topicId
+            }
+        }, {
+            '$unwind': {
+                'path': '$data'
+            }
+        }, {
+            '$project': {
+                'data.ref': 1, 
+                '_id': 0
+            }
+        }
+    ]
+
+    docs=[doc for doc in Questions.aggregate(pipeline)]
+    details=json.dumps(docs,default=json_util.default)
+    return jsonify(json.loads(details))
+
+
+@app.route("/qdata/<string:tid>/<string:refId>",methods=['GET'])
+@cross_origin(origin='*',headers=['Content-Type'])
+def getOptByRefid(tid,refId):
+    pipeline = [
+    {
+        '$project': {
+            '_id': 0, 
+            'topicID': 1, 
+            'data': 1
+        }
+    }, {
+        '$match': {
+            'topicID': tid
+        }
+    }, {
+        '$unwind': {
+            'path': '$data'
+        }
+    }, {
+        '$match': {
+            'data.ref': refId
+        }
+    }, {
+        '$project': {
+            'data.questions.question': 1
+        }
+    }, {
+        '$unwind': {
+            'path': '$data.questions'
+        }
+    }
+]
+
+    docs=[doc for doc in Questions.aggregate(pipeline)]
+    details=json.dumps(docs,default=json_util.default)
+    return jsonify(json.loads(details))
+
+@app.route("/qdataTOPIC",methods=['GET'])
+@cross_origin(origin='*',headers=['Content-Type'])
+def getTopicId():
+    pipeline =[
+    {
+        '$project': {
+            'topicID': 1, 
+            'topicName': 1, 
+            '_id': 0
+        }
+    }
+]
+    docs=[doc for doc in Questions.aggregate(pipeline)]
+    details=json.dumps(docs,default=json_util.default)
+    return jsonify(json.loads(details))
+
+@app.route("/qdataques/<string:tid>/<string:ref>/<string:question>",methods=['GET'])
+@cross_origin(origin='*',headers=['Content-Type'])
+def getOptions(tid,ref,question):
+    pipeline = [
+        {
+            '$match': {
+                'topicID': tid
+            }
+        }, {
+            '$unwind': {
+                'path': '$data'
+            }
+        }, {
+            '$match': {
+                'data.ref': ref
+            }
+        }, {
+            '$unwind': {
+                'path': '$data.questions'
+            }
+        }, {
+            '$match': {
+                'data.questions.question': question
+            }
+        }, {
+            '$unwind': {
+                'path': '$data.questions.options'
+            }
+        }, {
+            '$project': {
+                'data.questions.options': 1, 
+                '_id': 0
+            }
+        }
+    ]
+    docs=[doc for doc in Questions.aggregate(pipeline)]
+    details=json.dumps(docs,default=json_util.default)
+    return jsonify(json.loads(details))
+
+
+
+    
 
 app.run(port=5000,debug=True)
